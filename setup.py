@@ -6,7 +6,7 @@ from setuptools import setup, find_packages
 
 entry_points = """
 [glue.plugins]
-myplugin=myplugin:setup
+glue_specviz=glue_specviz:setup
 """
 
 try:
@@ -16,14 +16,14 @@ except (IOError, ImportError):
     with open('README.md') as infile:
         LONG_DESCRIPTION = infile.read()
 
-with open('myplugin/version.py') as infile:
+with open('glue_specviz/version.py') as infile:
     exec(infile.read())
 
-setup(name='myplugin',
+setup(name='glue-specviz',
       version=__version__,
-      description='My example plugin',
+      description='Glue plugin for the STScI specviz tool',
       long_description=LONG_DESCRIPTION,
-      url="https://github.com/glue-viz/glue-plugin-template",
+      url="https://github.com/glue-viz/glue-specviz",
       author='',
       author_email='',
       packages = find_packages(),
