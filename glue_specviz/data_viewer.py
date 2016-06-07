@@ -1,5 +1,6 @@
 import os
 
+from glue.core import Subset
 from glue.viewers.common.qt.data_viewer import DataViewer
 from glue.core import message as msg
 from glue.utils import nonpartial
@@ -100,25 +101,33 @@ class SpecvizViewer(DataViewer):
 
     def _refresh_specviz_data(self):
 
-        print('REFRESH', data_manager._members)
-
         if self._options_widget.file_att is None:
             return
 
         if self._layer_widget.layer is None:
             return
 
-        cid = self._layer_widget.layer.id[self._options_widget.file_att[0]]
+        if isinstance(self._layer_widget.layer, Subset):
+            subset = self._layer_widget.layer
+            cid = subset.data.id[self._options_widget.file_att[0]]
+            mask = subset.to_mask(None)
+            component = subset.data.get_component(cid)
+        else:
+            cid = self._layer_widget.layer.id[self._options_widget.file_att[0]]
+            mask = None
+            component = self._layer_widget.layer.get_component(cid)
 
-        component = self._layer_widget.layer.get_component(cid)
 
         # TODO: need a better way to clear the data manager
-        data_manager._members.clear()
+        [data_manager.remove(data) for data in data_manager._members[:]]
 
         if not component.categorical:
             return
 
         filenames = component.labels
+
+        if mask is not None:
+            filenames = filenames[mask]
 
         added = []
 

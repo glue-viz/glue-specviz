@@ -1,5 +1,6 @@
 import os
 
+from glue.core import Subset
 from glue.external.qt import QtGui
 
 from glue.core.qt.data_combo_helper import ComponentIDComboHelper
@@ -29,4 +30,7 @@ class OptionsWidget(QtGui.QWidget):
 
     def set_data(self, data):
         self.file_helper.clear()
-        self.file_helper.append(data)
+        if isinstance(data, Subset):
+            self.file_helper.append(data.data)
+        else:
+            self.file_helper.append(data)
