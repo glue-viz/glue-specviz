@@ -13,15 +13,15 @@ environment:
 
       CONDA_CHANNELS: "conda-forge"
       CONDA_DEPENDENCIES: "glueviz pytest mock"
-      PIP_DEPENDENCIES: "specviz"
+      PIP_DEPENDENCIES: "https://github.com/spacetelescope/specviz/archive/master.zip"
 
   matrix:
       - PYTHON_VERSION: "2.7"
       - PYTHON_VERSION: "3.5"
       - PYTHON_VERSION: "2.7"
-        PIP_DEPENDENCIES: "https://github.com/glue-viz/glue/archive/master.zip specviz"
+        PIP_DEPENDENCIES: "https://github.com/glue-viz/glue/archive/master.zip https://github.com/spacetelescope/specviz/archive/master.zip"
       - PYTHON_VERSION: "3.5"
-        PIP_DEPENDENCIES: "https://github.com/glue-viz/glue/archive/master.zip specviz"
+        PIP_DEPENDENCIES: "https://github.com/glue-viz/glue/archive/master.zip https://github.com/spacetelescope/specviz/archive/master.zip"
         
 platform:
     -x64
