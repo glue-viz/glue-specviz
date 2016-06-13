@@ -27,6 +27,6 @@ setup(name='glue-specviz',
       author='',
       author_email='',
       packages = find_packages(),
-      package_data={},
+      package_data={'glue_specviz': ['*.ui']},
       entry_points=entry_points
     )
