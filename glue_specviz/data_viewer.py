@@ -6,8 +6,7 @@ from glue.core import message as msg
 from glue.utils import nonpartial
 
 from specviz.ui.viewer import Viewer
-from specviz.ui.controller import Controller
-from specviz.interfaces.managers import data_manager
+from specviz.core import Dispatch, DispatchHandle
 
 from .viewer_options import OptionsWidget
 from .layer_widget import LayerWidget
@@ -24,11 +23,13 @@ class SpecvizViewer(DataViewer):
 
         super(SpecvizViewer, self).__init__(session, parent=parent)
 
+        # Connect the dataview to the specviz messaging system
+        DispatchHandle.setup(self)
+
         # We set up the specviz viewer and controller as done for the standalone
         # specviz application
-        self.viewer = Viewer()
-        self.controller = Controller(self.viewer)
-        self.setCentralWidget(self.viewer)
+        self.viewer = Viewer(hide_plugins=True)
+        self.setCentralWidget(self.viewer.main_window)
 
         # We now set up the options widget. This controls for example which
         # attribute should be used to indicate the filenames of the spectra.
@@ -125,7 +126,6 @@ class SpecvizViewer(DataViewer):
     # viewer's own data collection is up to date with the active data or subset.
 
     def _refresh_specviz_data(self):
-
         if self._options_widget.file_att is None:
             return
 
@@ -142,13 +142,14 @@ class SpecvizViewer(DataViewer):
             mask = None
             component = self._layer_widget.layer.get_component(cid)
 
-        # TODO: need a better way to clear the data manager
-        [data_manager.remove(data) for data in data_manager._members[:]]
+        # Clear current data objects in SpecViz
+        Dispatch.on_remove_all_data.emit()
 
         if not component.categorical:
             return
 
         filenames = component.labels
+        path = '/'.join(component._load_log.path.split('/')[:-1])
 
         if mask is not None:
             filenames = filenames[mask]
@@ -156,23 +157,18 @@ class SpecvizViewer(DataViewer):
         for filename in filenames:
 
             if filename in self._specviz_data_cache:
-
                 data = self._specviz_data_cache[filename]
-                data_manager.add(data)
+                Dispatch.on_add_data.emit(data=data)
 
             else:
-
-                # TODO: For now we replicate the logic from read_file since we
-                # need to keep a reference to the data object. Need to make this
-                # easier in specviz API.
-
                 file_name = str(filename)
-                file_ext = os.path.splitext(file_name)[-1]
+                file_path = os.path.join(path, file_name)
+                Dispatch.on_file_read.emit(file_name=file_path,
+                                           file_filter='MOS')
 
-                if file_ext in ('.txt', '.dat'):
-                    file_filter = 'ASCII (*.txt *.dat)'
-                else:
-                    file_filter = 'Generic Fits (*.fits *.mits)'
+    @DispatchHandle.register_listener('on_added_data')
+    def _added_data(self, data):
+        filename = data.name
+        self._specviz_data_cache[filename] = data
 
-                data = data_manager.load(filename, file_filter)
-                self._specviz_data_cache[filename] = data
+
