@@ -6,30 +6,26 @@ from glue.core import message as msg
 from glue.utils import nonpartial
 
 from specviz.ui.viewer import Viewer
-from specviz.core import Dispatch, DispatchHandle
+from specviz.core import Dispatch as SVDispatch
+from specviz.core import DispatchHandle as SVDispatchHandle
+from mosviz.core import Dispatch as MVDispatch
+from mosviz.core import DispatchHandle as MVDispatchHandle
+
+from mosviz.app import App
 
 from .viewer_options import OptionsWidget
 from .layer_widget import LayerWidget
 
 
-__all__ = ['SpecvizViewer']
+__all__ = ['MOSVizViewer']
 
 
-class SpecvizViewer(DataViewer):
-
-    LABEL = "SpecViz viewer"
-
+class BaseVizViewer(DataViewer):
     def __init__(self, session, parent=None):
-
-        super(SpecvizViewer, self).__init__(session, parent=parent)
+        super(BaseVizViewer, self).__init__(session, parent=parent)
 
         # Connect the dataview to the specviz messaging system
-        DispatchHandle.setup(self)
-
-        # We set up the specviz viewer and controller as done for the standalone
-        # specviz application
-        self.viewer = Viewer(hide_plugins=True)
-        self.setCentralWidget(self.viewer.main_window)
+        SVDispatchHandle.setup(self)
 
         # We now set up the options widget. This controls for example which
         # attribute should be used to indicate the filenames of the spectra.
@@ -41,16 +37,14 @@ class SpecvizViewer(DataViewer):
         # time.
         self._layer_widget = LayerWidget()
 
-        # We keep a cache of the specviz data objects that correspond to a given
-        # filename - although this could take up a lot of memory if there are
-        # many spectra, so maybe this isn't needed
-        self._specviz_data_cache = {}
-
         # Make sure we update the viewer if either the selected layer or the
         # column specifying the filename is changed.
-        self._layer_widget.ui.combo_active_layer.currentIndexChanged.connect(nonpartial(self._update_options))
-        self._layer_widget.ui.combo_active_layer.currentIndexChanged.connect(nonpartial(self._refresh_specviz_data))
-        self._options_widget.ui.combo_file_attribute.currentIndexChanged.connect(nonpartial(self._refresh_specviz_data))
+        self._layer_widget.ui.combo_active_layer.currentIndexChanged.connect(
+            nonpartial(self._update_options))
+        self._layer_widget.ui.combo_active_layer.currentIndexChanged.connect(
+            nonpartial(self._refresh_data))
+        self._options_widget.ui.combo_file_attribute.currentIndexChanged.connect(
+            nonpartial(self._refresh_data))
 
     # The following two methods are required by glue - they are used to specify
     # which widgets to put in the bottom left and middle left panel.
@@ -66,7 +60,7 @@ class SpecvizViewer(DataViewer):
 
     def register_to_hub(self, hub):
 
-        super(SpecvizViewer, self).register_to_hub(hub)
+        super(BaseVizViewer, self).register_to_hub(hub)
 
         hub.subscribe(self, msg.SubsetCreateMessage,
                       handler=self._add_subset)
@@ -87,32 +81,32 @@ class SpecvizViewer(DataViewer):
         if data not in self._layer_widget:
             self._layer_widget.add_layer(data)
         self._layer_widget.layer = data
-        self._refresh_specviz_data()
+        self._refresh_data()
         return True
 
     def add_subset(self, subset):
         if subset not in self._layer_widget:
             self._layer_widget.add_layer(subset)
         self._layer_widget.layer = subset
-        self._refresh_specviz_data()
+        self._refresh_data()
         return True
 
     # The following four methods are used to receive various messages related
     # to updates to data or subsets.
 
     def _update_data(self, message):
-        self._refresh_specviz_data()
+        self._refresh_data()
 
     def _add_subset(self, message):
         self.add_subset(message.subset)
 
     def _update_subset(self, message):
-        self._refresh_specviz_data()
+        self._refresh_data()
 
     def _remove_subset(self, message):
         if message.subset in self._layer_widget:
             self._layer_widget.remove_layer(message.subset)
-        self._refresh_specviz_data()
+        self._refresh_data()
 
     # When the selected layer is changed, we need to update the combo box with
     # the attributes from which the filename attribute can be selected. The
@@ -121,11 +115,27 @@ class SpecvizViewer(DataViewer):
     def _update_options(self):
         self._options_widget.set_data(self._layer_widget.layer)
 
-    # The following method does the bulk of the interfacing of this plugin with
-    # specviz - it essentially makes sure that that list of datasets in the
-    # viewer's own data collection is up to date with the active data or subset.
+    def _refresh_data(self):
+        raise NotImplementedError()
 
-    def _refresh_specviz_data(self):
+
+class SpecvizViewer(BaseVizViewer):
+
+    LABEL = "SpecViz viewer"
+
+    def __init__(self, session, parent=None):
+        super(SpecvizViewer, self).__init__(session, parent=None)
+        # We keep a cache of the specviz data objects that correspond to a given
+        # filename - although this could take up a lot of memory if there are
+        # many spectra, so maybe this isn't needed
+        self._specviz_data_cache = {}
+
+        # We set up the specviz viewer and controller as done for the standalone
+        # specviz application
+        self.viewer = Viewer(hide_plugins=True)
+        self.setCentralWidget(self.viewer.main_window)
+
+    def _refresh_data(self):
         if self._options_widget.file_att is None:
             return
 
@@ -143,7 +153,7 @@ class SpecvizViewer(DataViewer):
             component = self._layer_widget.layer.get_component(cid)
 
         # Clear current data objects in SpecViz
-        Dispatch.on_remove_all_data.emit()
+        SVDispatch.on_remove_all_data.emit()
 
         if not component.categorical:
             return
@@ -158,17 +168,76 @@ class SpecvizViewer(DataViewer):
 
             if filename in self._specviz_data_cache:
                 data = self._specviz_data_cache[filename]
-                Dispatch.on_add_data.emit(data=data)
+                SVDispatch.on_add_data.emit(data=data)
 
             else:
                 file_name = str(filename)
                 file_path = os.path.join(path, file_name)
-                Dispatch.on_file_read.emit(file_name=file_path,
+                SVDispatch.on_file_read.emit(file_name=file_path,
                                            file_filter='MOS')
 
-    @DispatchHandle.register_listener('on_added_data')
+    @SVDispatchHandle.register_listener('on_added_data')
     def _added_data(self, data):
         filename = data.name
         self._specviz_data_cache[filename] = data
+
+
+class MOSVizViewer(BaseVizViewer):
+
+    LABEL = "MOSViz viewer"
+
+    def __init__(self, session, parent=None):
+        super(MOSVizViewer, self).__init__(session, parent=None)
+        # We keep a cache of the mosviz data objects that correspond to a given
+        # filename - although this could take up a lot of memory if there are
+        # many spectra, so maybe this isn't needed
+        self._mosviz_data_cache = {}
+
+        self.app = App()
+        self.setCentralWidget(self.app.main_window)
+
+    def _refresh_data(self):
+        if self._options_widget.file_att is None:
+            return
+
+        if self._layer_widget.layer is None:
+            return
+
+        data = self._layer_widget.layer
+        mask = None
+
+        if isinstance(self._layer_widget.layer, Subset):
+            mask = data.to_mask(None)
+            data = data.data
+
+        columns = []
+        col_names = data.components
+
+        for att in col_names:
+            cid = data.id[att]
+            component = data.get_component(cid)
+
+            if component.categorical:
+                if str(att) in ['spectrum1d', 'spectrum2d', 'cutout']:
+                    path = '/'.join(component._load_log.path.split('/')[:-1])
+                    columns.append([os.path.join(path, x) for x in
+                                    component.labels[mask][0]])
+                else:
+                    columns.append(component.labels[mask][0])
+            else:
+                columns.append(component.data[mask][0])
+
+        catalog_list = []
+
+        for row in zip(*columns):
+            catalog_dict = dict(zip([str(x) for x in col_names], row))
+            catalog_list.append(catalog_dict)
+
+        # Clear current data objects in MOSViz
+        MVDispatch.on_remove_all_data.emit()
+
+        MVDispatch.on_file_read.emit(file_name=catalog_list,
+                                     file_filter='mos-glue')
+
 
 
