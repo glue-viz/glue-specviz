@@ -1,7 +1,11 @@
 import os
 
 from glue.core import Subset
-from glue.external.qt import QtGui
+
+try:
+    from glue.external.qt import QtGui as QtWidgets
+except ImportError:
+    from qtpy import QtWidgets
 
 from glue.core.qt.data_combo_helper import ComponentIDComboHelper
 from glue.utils.qt.widget_properties import CurrentComboDataProperty
@@ -10,7 +14,7 @@ from glue.utils.qt import load_ui
 __all__ = ["OptionsWidget"]
 
 
-class OptionsWidget(QtGui.QWidget):
+class OptionsWidget(QtWidgets.QWidget):
 
     file_att = CurrentComboDataProperty('ui.combo_file_attribute')
 
@@ -31,6 +35,12 @@ class OptionsWidget(QtGui.QWidget):
     def set_data(self, data):
         self.file_helper.clear()
         if isinstance(data, Subset):
-            self.file_helper.append(data.data)
+            try:
+                self.file_helper.append_data(data.data)
+            except AttributeError:
+                self.file_helper.append(data.data)
         else:
-            self.file_helper.append(data)
+            try:
+                self.file_helper.append_data(data)
+            except AttributeError:
+                self.file_helper.append(data)

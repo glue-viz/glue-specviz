@@ -1,6 +1,9 @@
 import os
 
-from glue.external.qt import QtGui
+try:
+    from glue.external.qt import QtGui as QtWidgets
+except ImportError:
+    from qtpy import QtWidgets
 
 from glue.utils.qt.widget_properties import CurrentComboDataProperty
 from glue.utils.qt import load_ui, update_combobox
@@ -8,7 +11,7 @@ from glue.utils.qt import load_ui, update_combobox
 __all__ = ["LayerWidget"]
 
 
-class LayerWidget(QtGui.QWidget):
+class LayerWidget(QtWidgets.QWidget):
 
     layer = CurrentComboDataProperty('ui.combo_active_layer')
 
