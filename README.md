@@ -1,6 +1,8 @@
 Experimental glue specviz plugin
 ================================
 
+[![Join the chat at https://gitter.im/glue-viz/glue-specviz](https://badges.gitter.im/glue-viz/glue-specviz.svg)](https://gitter.im/glue-viz/glue-specviz?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 [![Build Status](https://travis-ci.org/glue-viz/glue-wwt.svg)](https://travis-ci.org/glue-viz/glue-wwt?branch=master)
 [![Build status](https://ci.appveyor.com/api/projects/status/1gov2vtuesjnij69/branch/master?svg=true)](https://ci.appveyor.com/project/astrofrog/glue-wwt/branch/master)
 
